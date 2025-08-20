@@ -7,3 +7,5 @@
 
 ---
 이 README는 NIFT, 삼플이 만든 **NIFT**를 통해 자동으로 생성 및 발행되었습니다.
+
+![Anurag's GitHub stats](https://github-readme-stats.vercel.app/api?username=sampple-korea&show_icons=true&theme=radical)
