@@ -12,11 +12,12 @@ import json
 import os
 import re
 import time
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
@@ -25,7 +26,14 @@ ROOT = Path(__file__).resolve().parents[1]
 METRICS_DIR = ROOT / "metrics"
 TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 API_VERSION = "2022-11-28"
-WORD_RE = re.compile(r"[\w가-힣]+", re.UNICODE)
+XML_WORD_RE = re.compile(r"[A-Za-z가-힣]+(?:[-'][A-Za-z가-힣]+)*|\d+(?:[.,]\d+)*")
+IGNORED_XML_TOKEN_RE = re.compile(
+    r"https?://\S+|"
+    r"%(\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[A-Za-z%]|"
+    r"\\[nrt\"']|"
+    r"@\w+/[\w.]+|"
+    r"\{[^{}]*\}|\$\{[^{}]*\}"
+)
 TEXT_SIGNAL_RE = re.compile(
     r"\b(korean|ko[-_ ]?kr|translation|translations|locali[sz]ation|"
     r"i18n|l10n|locale|language)\b|한국어|한글",
@@ -49,6 +57,11 @@ WEAK_TRANSLATION_PATH_RE = re.compile(
     r"(^|/)(?:i18n|l10n|locale|locales|lang|langs|language|languages|"
     r"translation|translations|crowdin|weblate)(/|$)|"
     r"locales_config\.xml$|LocaleUtils\.(?:kt|java|swift|ts|tsx|js|jsx)$",
+    re.IGNORECASE,
+)
+XML_LOCALE_PATH_RE = re.compile(
+    r"(^|/)values-ko(?:-rkr)?/.*\.xml$|"
+    r"(^|/)(?:intl_|messages_|strings[-_])?ko(?:[-_]kr)?\.xml$",
     re.IGNORECASE,
 )
 
@@ -78,6 +91,15 @@ def api_get_text(url: str, accept: str) -> str:
                 continue
             body = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"GitHub API request failed: {exc.code} {url}\n{body}") from exc
+
+
+def api_get_text_optional(url: str, accept: str = "text/plain") -> str | None:
+    try:
+        return api_get_text(url, accept)
+    except RuntimeError as exc:
+        if "failed: 404" in str(exc):
+            return None
+        raise
 
 
 def paged(url: str) -> list[Any]:
@@ -116,17 +138,104 @@ def search_merged_prs() -> dict[str, dict[str, Any]]:
     return pulls
 
 
-def count_patch_words(patch: str | None) -> int:
-    if not patch:
-        return 0
+def raw_github_url(repo: str, ref: str, path: str) -> str:
+    return f"https://raw.githubusercontent.com/{repo}/{ref}/{quote(path, safe='/')}"
 
-    words = 0
-    for line in patch.splitlines():
-        if line.startswith(("+++", "---", "@@")):
+
+def local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def element_text(element: ET.Element) -> str:
+    return "".join(element.itertext())
+
+
+def count_xml_words(text: str) -> int:
+    cleaned = IGNORED_XML_TOKEN_RE.sub(" ", text)
+    cleaned = cleaned.replace("\\n", " ").replace("\\t", " ")
+    return len(XML_WORD_RE.findall(cleaned))
+
+
+def parse_android_xml_entries(content: str) -> dict[str, str]:
+    root = ET.fromstring(content.encode("utf-8"))
+    entries: dict[str, str] = {}
+
+    for child in root:
+        tag = local_name(child.tag)
+        name = child.attrib.get("name")
+        if not name or child.attrib.get("translatable") == "false":
             continue
-        if line.startswith(("+", "-")):
-            words += len(WORD_RE.findall(line[1:]))
-    return words
+
+        if tag == "string":
+            entries[f"string:{name}"] = element_text(child)
+            continue
+
+        if tag in {"array", "string-array", "integer-array"}:
+            index = 0
+            for item in child:
+                if local_name(item.tag) != "item":
+                    continue
+                entries[f"{tag}:{name}:{index}"] = element_text(item)
+                index += 1
+            continue
+
+        if tag == "plurals":
+            for item in child:
+                if local_name(item.tag) != "item":
+                    continue
+                quantity = item.attrib.get("quantity", str(len(entries)))
+                entries[f"plurals:{name}:{quantity}"] = element_text(item)
+            continue
+
+        if tag == "item":
+            item_type = child.attrib.get("type", "item")
+            entries[f"{item_type}:{name}"] = element_text(child)
+
+    return entries
+
+
+def changed_xml_stats(
+    pull: dict[str, Any], files: list[dict[str, Any]], ko_locale_files: list[str]
+) -> tuple[int, int, list[dict[str, Any]]]:
+    base_repo = pull.get("base", {}).get("repo", {}).get("full_name")
+    base_sha = pull.get("base", {}).get("sha")
+    total_words = 0
+    total_resources = 0
+    xml_files: list[dict[str, Any]] = []
+
+    for file in files:
+        filename = file.get("filename") or ""
+        if filename not in ko_locale_files or not XML_LOCALE_PATH_RE.search(filename):
+            continue
+        if file.get("status") == "removed":
+            continue
+
+        head_text = api_get_text_optional(file.get("raw_url") or "")
+        if not head_text:
+            continue
+
+        base_text = None
+        if base_repo and base_sha:
+            base_text = api_get_text_optional(raw_github_url(base_repo, base_sha, filename))
+
+        after_entries = parse_android_xml_entries(head_text)
+        before_entries = parse_android_xml_entries(base_text) if base_text else {}
+        changed_keys = [
+            key for key, value in after_entries.items() if before_entries.get(key) != value
+        ]
+        file_words = sum(count_xml_words(after_entries[key]) for key in changed_keys)
+
+        total_words += file_words
+        total_resources += len(changed_keys)
+        xml_files.append(
+            {
+                "filename": filename,
+                "changed_resources": len(changed_keys),
+                "xml_words": file_words,
+            }
+        )
+
+    return total_words, total_resources, xml_files
 
 
 def classify_translation_pr(
@@ -158,16 +267,13 @@ def classify_translation_pr(
 def fetch_pull_stats(pull_url: str, seed: dict[str, Any]) -> dict[str, Any]:
     pull = api_get(pull_url)
     files = paged(f"{pull_url}/files?")
-    diff_words = sum(count_patch_words(file.get("patch")) for file in files)
-    diff_url = pull.get("diff_url")
-    if diff_url:
-        try:
-            diff_words = count_patch_words(
-                api_get_text(diff_url, "application/vnd.github.v3.diff")
-            )
-        except RuntimeError:
-            pass
     is_translation, classification = classify_translation_pr(pull, files, seed)
+    is_public = not bool(pull.get("base", {}).get("repo", {}).get("private"))
+    xml_words, xml_resources, xml_files = (0, 0, [])
+    if is_public and is_translation:
+        xml_words, xml_resources, xml_files = changed_xml_stats(
+            pull, files, classification["ko_locale_files"]
+        )
 
     additions = int(pull.get("additions") or 0)
     deletions = int(pull.get("deletions") or 0)
@@ -181,8 +287,10 @@ def fetch_pull_stats(pull_url: str, seed: dict[str, Any]) -> dict[str, Any]:
         "deletions": deletions,
         "changed_lines": additions + deletions,
         "changed_files": int(pull.get("changed_files") or 0),
-        "diff_words": diff_words,
-        "is_public": not bool(pull.get("base", {}).get("repo", {}).get("private")),
+        "xml_words": xml_words,
+        "xml_changed_resources": xml_resources,
+        "xml_files": xml_files,
+        "is_public": is_public,
         "is_translation": is_translation,
         **classification,
     }
@@ -235,15 +343,17 @@ def main() -> int:
     additions = sum(item["additions"] for item in pull_stats)
     deletions = sum(item["deletions"] for item in pull_stats)
     changed_lines = additions + deletions
-    diff_words = sum(item["diff_words"] for item in pull_stats)
     changed_files = sum(item["changed_files"] for item in pull_stats)
+    xml_words = sum(item["xml_words"] for item in pull_stats)
+    xml_changed_resources = sum(item["xml_changed_resources"] for item in pull_stats)
+    xml_files = sum(len(item["xml_files"]) for item in pull_stats)
 
     stats = with_stable_updated_at(
         METRICS_DIR / "translation-stats.json",
         {
             "user": USER,
             "classification": {
-                "mode": "public merged PRs by author, then classify by Korean locale paths and translation text signals",
+                "mode": "public merged PRs by author, then classify by Korean locale paths and count changed Android XML resource text",
                 "text_signal_pattern": TEXT_SIGNAL_RE.pattern,
                 "strong_locale_path_pattern": STRONG_LOCALE_PATH_RE.pattern,
                 "weak_translation_path_pattern": WEAK_TRANSLATION_PATH_RE.pattern,
@@ -253,29 +363,20 @@ def main() -> int:
             "deletions": deletions,
             "changed_lines": changed_lines,
             "changed_files": changed_files,
-            "diff_words": diff_words,
+            "xml_words": xml_words,
+            "xml_changed_resources": xml_changed_resources,
+            "xml_files": xml_files,
             "pulls": pull_stats,
         },
     )
 
     write_json(METRICS_DIR / "translation-stats.json", stats)
     write_json(
-        METRICS_DIR / "translation-lines-badge.json",
+        METRICS_DIR / "translation-xml-words-badge.json",
         {
             "schemaVersion": 1,
-            "label": "translation changes",
-            "message": f"{compact_number(changed_lines)} lines",
-            "color": "2ea44f",
-            "namedLogo": "github",
-            "style": "flat-square",
-        },
-    )
-    write_json(
-        METRICS_DIR / "translation-words-badge.json",
-        {
-            "schemaVersion": 1,
-            "label": "translation diff words",
-            "message": f"{compact_number(diff_words)} words",
+            "label": "translated XML",
+            "message": f"{compact_number(xml_words)} words",
             "color": "0969da",
             "namedLogo": "github",
             "style": "flat-square",
@@ -284,7 +385,7 @@ def main() -> int:
 
     print(
         f"Updated translation stats: {len(pull_stats)} PRs, "
-        f"{changed_lines} changed lines, {diff_words} diff words."
+        f"{xml_words} XML words across {xml_changed_resources} resources."
     )
     return 0
 

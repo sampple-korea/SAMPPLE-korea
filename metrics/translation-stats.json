@@ -3,13 +3,12 @@
   "changed_files": 10,
   "changed_lines": 8029,
   "classification": {
-    "mode": "public merged PRs by author, then classify by Korean locale paths and translation text signals",
+    "mode": "public merged PRs by author, then classify by Korean locale paths and count changed Android XML resource text",
     "strong_locale_path_pattern": "(^|/)(values-ko(?:-rkr)?|ko|ko[-_]kr|ko-rkr)(/|$|\\.)|(^|/)(?:intl_|messages_|strings[-_])?ko(?:[-_]kr)?\\.(?:arb|json|ya?ml|po|pot|ts|tsx|js|jsx|xml|xlf|xliff|properties|strings)$|(^|/)readme[._-]ko(?:[-_]kr)?\\.md$",
     "text_signal_pattern": "\\b(korean|ko[-_ ]?kr|translation|translations|locali[sz]ation|i18n|l10n|locale|language)\\b|한국어|한글",
     "weak_translation_path_pattern": "(^|/)(?:i18n|l10n|locale|locales|lang|langs|language|languages|translation|translations|crowdin|weblate)(/|$)|locales_config\\.xml$|LocaleUtils\\.(?:kt|java|swift|ts|tsx|js|jsx)$"
   },
   "deletions": 1,
-  "diff_words": 66736,
   "merged_translation_prs": 3,
   "pulls": [
     {
@@ -17,7 +16,6 @@
       "changed_files": 3,
       "changed_lines": 743,
       "deletions": 0,
-      "diff_words": 5548,
       "is_public": true,
       "is_translation": true,
       "ko_locale_files": [
@@ -34,14 +32,32 @@
       ],
       "title": "feat: add Korean localization",
       "translation_support_files": [],
-      "url": "https://github.com/risin42/NagramX/pull/378"
+      "url": "https://github.com/risin42/NagramX/pull/378",
+      "xml_changed_resources": 713,
+      "xml_files": [
+        {
+          "changed_resources": 105,
+          "filename": "TMessagesProj/src/main/res/values-ko/strings_na.xml",
+          "xml_words": 357
+        },
+        {
+          "changed_resources": 335,
+          "filename": "TMessagesProj/src/main/res/values-ko/strings_nax.xml",
+          "xml_words": 1183
+        },
+        {
+          "changed_resources": 273,
+          "filename": "TMessagesProj/src/main/res/values-ko/strings_neko.xml",
+          "xml_words": 903
+        }
+      ],
+      "xml_words": 2443
     },
     {
       "additions": 354,
       "changed_files": 1,
       "changed_lines": 354,
       "deletions": 0,
-      "diff_words": 2384,
       "is_public": true,
       "is_translation": true,
       "ko_locale_files": [
@@ -56,14 +72,22 @@
       ],
       "title": "Add Korean localization",
       "translation_support_files": [],
-      "url": "https://github.com/xororz/local-dream/pull/219"
+      "url": "https://github.com/xororz/local-dream/pull/219",
+      "xml_changed_resources": 297,
+      "xml_files": [
+        {
+          "changed_resources": 297,
+          "filename": "app/src/main/res/values-ko/strings.xml",
+          "xml_words": 1040
+        }
+      ],
+      "xml_words": 1040
     },
     {
       "additions": 6931,
       "changed_files": 6,
       "changed_lines": 6932,
       "deletions": 1,
-      "diff_words": 58804,
       "is_public": true,
       "is_translation": true,
       "ko_locale_files": [
@@ -82,9 +106,21 @@
         "app/src/main/java/com/ai/assistance/operit/util/LocaleUtils.kt",
         "app/src/main/res/xml/locales_config.xml"
       ],
-      "url": "https://github.com/AAswordman/Operit/pull/570"
+      "url": "https://github.com/AAswordman/Operit/pull/570",
+      "xml_changed_resources": 6887,
+      "xml_files": [
+        {
+          "changed_resources": 6887,
+          "filename": "app/src/main/res/values-ko/strings.xml",
+          "xml_words": 28359
+        }
+      ],
+      "xml_words": 28359
     }
   ],
-  "updated_at": "2026-06-01T03:21:10+00:00",
-  "user": "sampple-korea"
+  "updated_at": "2026-06-01T03:29:20+00:00",
+  "user": "sampple-korea",
+  "xml_changed_resources": 7897,
+  "xml_files": 5,
+  "xml_words": 31842
 }
