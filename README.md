@@ -24,6 +24,14 @@
 | Open source | 직접 쓰는 프로젝트에 이슈, 개선, 번역으로 기여 |
 | Automation | GitHub Actions와 스크립트로 반복 작업 자동화 |
 
+## 공개 프로젝트
+
+| Project | What it is |
+| --- | --- |
+| [WPM+](https://github.com/sampple-korea/WPM-plus) | Material 3 Android Wi-Fi vault, backup, restore, and audit app |
+| [MES](https://github.com/sampple-korea/MES) | Mobile-first userscript for selecting and hiding web page elements |
+| [DCMobile Gallog QuickViewer](https://github.com/sampple-korea/DCMobile-Gallog-QuickViewer) | Mobile DCInside Gallog quick-view userscript |
+
 ## 번역 기여 기록
 
 GitHub Actions로 자동 집계되는 공개 번역 기여 기록입니다.
