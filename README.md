@@ -8,6 +8,8 @@
 
 <p>
   <img alt="GitHub followers" src="https://img.shields.io/github/followers/sampple-korea?style=flat-square&logo=github&label=followers">
+  <a href="https://github.com/sampple-korea/SAMPPLE-korea/actions/workflows/update-translation-stats.yml"><img alt="Update translation stats" src="https://github.com/sampple-korea/SAMPPLE-korea/actions/workflows/update-translation-stats.yml/badge.svg?branch=main"></a>
+  <img alt="Profile views" src="https://komarev.com/ghpvc/?username=sampple-korea&style=flat-square&label=profile%20views">
   <img alt="Weblate" src="https://img.shields.io/weblate/translations/sampple-korea?server=https%3A%2F%2Fhosted.weblate.org&style=flat-square&logo=weblate&label=Weblate%20translations">
   <img alt="Translated XML" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsampple-korea%2FSAMPPLE-korea%2Fmain%2Fmetrics%2Ftranslation-xml-words-badge.json">
 </p>
