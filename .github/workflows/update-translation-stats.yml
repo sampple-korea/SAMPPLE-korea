@@ -1,0 +1,40 @@
+name: Update translation stats
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/update-translation-stats.yml"
+      - "scripts/update_translation_stats.py"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out profile repository
+        uses: actions/checkout@v4
+
+      - name: Generate translation stats
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/update_translation_stats.py
+
+      - name: Commit updated stats
+        run: |
+          if [[ -z "$(git status --porcelain metrics)" ]]; then
+            echo "Translation stats are already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add metrics/translation-stats.json metrics/translation-lines-badge.json metrics/translation-words-badge.json
+          git commit -m "Update translation contribution stats"
+          git push
