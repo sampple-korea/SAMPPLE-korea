@@ -4,7 +4,7 @@
   "changed_lines": 8029,
   "classification": {
     "mode": "all merged PRs by author, then classify by Korean locale paths and translation text signals",
-    "scanned_merged_prs": 31,
+    "scanned_merged_prs": 5,
     "strong_locale_path_pattern": "(^|/)(values-ko(?:-rkr)?|ko|ko[-_]kr|ko-rkr)(/|$|\\.)|(^|/)(?:intl_|messages_|strings[-_])?ko(?:[-_]kr)?\\.(?:arb|json|ya?ml|po|pot|ts|tsx|js|jsx|xml|xlf|xliff|properties|strings)$|(^|/)readme[._-]ko(?:[-_]kr)?\\.md$",
     "text_signal_pattern": "\\b(korean|ko[-_ ]?kr|translation|translations|locali[sz]ation|i18n|l10n|locale|language)\\b|한국어|한글",
     "weak_translation_path_pattern": "(^|/)(?:i18n|l10n|locale|locales|lang|langs|language|languages|translation|translations|crowdin|weblate)(/|$)|locales_config\\.xml$|LocaleUtils\\.(?:kt|java|swift|ts|tsx|js|jsx)$"
@@ -83,6 +83,6 @@
       "url": "https://github.com/AAswordman/Operit/pull/570"
     }
   ],
-  "updated_at": "2026-06-01T03:16:15+00:00",
+  "updated_at": "2026-06-01T03:17:15+00:00",
   "user": "sampple-korea"
 }
