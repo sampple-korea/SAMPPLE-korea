@@ -182,6 +182,7 @@ def fetch_pull_stats(pull_url: str, seed: dict[str, Any]) -> dict[str, Any]:
         "changed_lines": additions + deletions,
         "changed_files": int(pull.get("changed_files") or 0),
         "diff_words": diff_words,
+        "is_public": not bool(pull.get("base", {}).get("repo", {}).get("private")),
         "is_translation": is_translation,
         **classification,
     }
@@ -204,11 +205,31 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
+def with_stable_updated_at(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    existing_payload: dict[str, Any] | None = None
+    if path.exists():
+        try:
+            existing_payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            existing_payload = None
+
+    updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if existing_payload:
+        existing_without_timestamp = dict(existing_payload)
+        existing_without_timestamp.pop("updated_at", None)
+        if existing_without_timestamp == payload:
+            updated_at = existing_payload.get("updated_at") or updated_at
+
+    return {"updated_at": updated_at, **payload}
+
+
 def main() -> int:
     METRICS_DIR.mkdir(parents=True, exist_ok=True)
     pulls = search_merged_prs()
     all_pull_stats = [fetch_pull_stats(url, seed) for url, seed in sorted(pulls.items())]
-    pull_stats = [item for item in all_pull_stats if item["is_translation"]]
+    pull_stats = [
+        item for item in all_pull_stats if item["is_translation"] and item["is_public"]
+    ]
     pull_stats.sort(key=lambda item: item.get("merged_at") or "", reverse=True)
 
     additions = sum(item["additions"] for item in pull_stats)
@@ -217,24 +238,25 @@ def main() -> int:
     diff_words = sum(item["diff_words"] for item in pull_stats)
     changed_files = sum(item["changed_files"] for item in pull_stats)
 
-    stats = {
-        "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "user": USER,
-        "classification": {
-            "mode": "all merged PRs by author, then classify by Korean locale paths and translation text signals",
-            "text_signal_pattern": TEXT_SIGNAL_RE.pattern,
-            "strong_locale_path_pattern": STRONG_LOCALE_PATH_RE.pattern,
-            "weak_translation_path_pattern": WEAK_TRANSLATION_PATH_RE.pattern,
-            "scanned_merged_prs": len(all_pull_stats),
+    stats = with_stable_updated_at(
+        METRICS_DIR / "translation-stats.json",
+        {
+            "user": USER,
+            "classification": {
+                "mode": "public merged PRs by author, then classify by Korean locale paths and translation text signals",
+                "text_signal_pattern": TEXT_SIGNAL_RE.pattern,
+                "strong_locale_path_pattern": STRONG_LOCALE_PATH_RE.pattern,
+                "weak_translation_path_pattern": WEAK_TRANSLATION_PATH_RE.pattern,
+            },
+            "merged_translation_prs": len(pull_stats),
+            "additions": additions,
+            "deletions": deletions,
+            "changed_lines": changed_lines,
+            "changed_files": changed_files,
+            "diff_words": diff_words,
+            "pulls": pull_stats,
         },
-        "merged_translation_prs": len(pull_stats),
-        "additions": additions,
-        "deletions": deletions,
-        "changed_lines": changed_lines,
-        "changed_files": changed_files,
-        "diff_words": diff_words,
-        "pulls": pull_stats,
-    }
+    )
 
     write_json(METRICS_DIR / "translation-stats.json", stats)
     write_json(
