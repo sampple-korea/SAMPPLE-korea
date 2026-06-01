@@ -28,13 +28,13 @@ jobs:
 
       - name: Commit updated stats
         run: |
-          if [[ -z "$(git status --porcelain metrics)" ]]; then
+          if [[ -z "$(git status --porcelain README.md metrics)" ]]; then
             echo "Translation stats are already up to date."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add metrics/translation-stats.json metrics/translation-xml-words-badge.json
+          git add README.md metrics/translation-stats.json metrics/translation-xml-words-badge.json
           git commit -m "Update translation contribution stats"
           git push

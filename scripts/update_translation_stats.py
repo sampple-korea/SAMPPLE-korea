@@ -24,6 +24,7 @@ from urllib.request import Request, urlopen
 USER = os.environ.get("GITHUB_PROFILE_USER", "sampple-korea")
 ROOT = Path(__file__).resolve().parents[1]
 METRICS_DIR = ROOT / "metrics"
+README_PATH = ROOT / "README.md"
 TOKEN = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
 API_VERSION = "2022-11-28"
 XML_WORD_RE = re.compile(r"[A-Za-z가-힣]+(?:[-'][A-Za-z가-힣]+)*|\d+(?:[.,]\d+)*")
@@ -313,6 +314,49 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
+def format_int(value: int) -> str:
+    return f"{value:,}"
+
+
+def translation_table(stats: dict[str, Any]) -> str:
+    rows = [
+        "| Project | XML words | Resources | PR |",
+        "| --- | ---: | ---: | --- |",
+    ]
+    pulls = sorted(
+        stats["pulls"],
+        key=lambda item: (item["xml_words"], item["xml_changed_resources"]),
+        reverse=True,
+    )
+    for pull in pulls:
+        project = pull["repo"].split("/", 1)[-1]
+        rows.append(
+            f"| {project} | {format_int(pull['xml_words'])} | "
+            f"{format_int(pull['xml_changed_resources'])} | "
+            f"[#{pull['number']}]({pull['url']}) |"
+        )
+    return "\n".join(rows)
+
+
+def update_readme_table(stats: dict[str, Any]) -> None:
+    if not README_PATH.exists():
+        return
+
+    start = "<!-- translation-stats:start -->"
+    end = "<!-- translation-stats:end -->"
+    block = f"{start}\n{translation_table(stats)}\n{end}"
+    content = README_PATH.read_text(encoding="utf-8")
+
+    if start in content and end in content:
+        before, rest = content.split(start, 1)
+        _, after = rest.split(end, 1)
+        new_content = before.rstrip() + "\n\n" + block + after
+    else:
+        new_content = content.rstrip() + "\n\n" + block + "\n"
+
+    README_PATH.write_text(new_content, encoding="utf-8")
+
+
 def with_stable_updated_at(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
     existing_payload: dict[str, Any] | None = None
     if path.exists():
@@ -371,6 +415,7 @@ def main() -> int:
     )
 
     write_json(METRICS_DIR / "translation-stats.json", stats)
+    update_readme_table(stats)
     write_json(
         METRICS_DIR / "translation-xml-words-badge.json",
         {
