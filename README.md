@@ -40,6 +40,7 @@ GitHub Actions로 자동 집계되는 공개 번역 기여 기록입니다.
 | Project | XML words | Resources | PR |
 | --- | ---: | ---: | --- |
 | Operit | 28,359 | 6,887 | [#570](https://github.com/AAswordman/Operit/pull/570) |
+| Vectras-VM-Android | 3,377 | 718 | [#661](https://github.com/xoureldeen/Vectras-VM-Android/pull/661) |
 | NagramX | 2,443 | 713 | [#378](https://github.com/risin42/NagramX/pull/378) |
 | local-dream | 1,040 | 297 | [#219](https://github.com/xororz/local-dream/pull/219) |
 | AntiSplit-M | 239 | 59 | [#662](https://github.com/AbdurazaaqMohammed/AntiSplit-M/pull/662) |
